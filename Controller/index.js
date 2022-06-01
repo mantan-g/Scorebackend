@@ -1,16 +1,5 @@
-const { User, Scores } = require("../Schema/users");
+const { Scores } = require("../Schema/users");
 const dayjs = require("dayjs");
-
-const addNewUser = async (username) => {
-  try {
-    let user = new User({
-      username,
-    });
-    const result = await user.save();
-  } catch (err) {
-    console.log(err);
-  }
-};
 
 const addScoreByUsername = async (username, score) => {
   try {
@@ -37,25 +26,29 @@ const addScoreByUsername = async (username, score) => {
       });
       await newScore.save();
     }
+
+    return true;
   } catch (err) {
     console.log(err);
+    return false;
   }
 };
 
 const addScore = async (req, res) => {
   const { username, score } = req.body;
   try {
-    let userData = await User.find({ username });
-    if (userData.length <= 0) {
-      addNewUser(username);
-      addScoreByUsername(username, score);
+    var isScoreAdded = await addScoreByUsername(username, score);
+    if (isScoreAdded) {
+      res.status(201).send({
+        status: "success",
+        message: "Added score successfully",
+      });
     } else {
-      addScoreByUsername(username, score);
+      res.status(500).send({
+        status: "error",
+        message: "Error Occurred",
+      });
     }
-    res.status(201).send({
-      status: "success",
-      message: "Added score successfully",
-    });
   } catch (err) {
     console.log(err);
     res.status(500).send({
@@ -65,9 +58,8 @@ const addScore = async (req, res) => {
   }
 };
 
-const getDataForDashboard = async (req, res) => {
+const getScoreDetailsByDate = async (filterDate) => {
   try {
-    const { filterDate } = req.body;
     let scores = await Scores.find({
       createdOnDate: {
         $gte: dayjs(filterDate).startOf("day").toDate(),
@@ -82,16 +74,25 @@ const getDataForDashboard = async (req, res) => {
           score: score.score,
         };
       });
-      res.status(200).send({
-        status: "success",
-        data: scoresData,
-      });
+
+      return scoresData;
     } else {
-      res.status(404).send({
-        status: "error",
-        message: "No record found",
-      });
+      return [];
     }
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+};
+const getDataForDashboard = async (req, res) => {
+  try {
+    const { filterDate } = req.body;
+    var scores = await getScoreDetailsByDate(filterDate);
+
+    res.status(200).send({
+      status: "success",
+      data: scores,
+    });
   } catch (err) {
     console.log(err);
     res.status(500).send({
